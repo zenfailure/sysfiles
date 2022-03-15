@@ -1,0 +1,34 @@
+#!/bin/bash
+
+ZIPURL="https://www.privateinternetaccess.com/openvpn/openvpn-strong.zip"
+
+TMPDIR=$(mktemp -d)
+TARGET="openvpn/privateinternetaccess/profiles"
+ZIPFILE="$TMPDIR/${ZIPURL##*/}"
+SRCPATH="$TMPDIR/$TARGET"
+DSTPATH="/etc/$TARGET"
+CREDS="/etc/openvpn/privateinternetaccess/credentials.txt"
+
+curl -sS "$ZIPURL" -o "$ZIPFILE"
+mkdir -p "$SRCPATH"
+mkdir -p "$DSTPATH"
+mkdir -p "$TMPDIR/files"
+unzip -d "$TMPDIR/files" "$ZIPFILE"
+
+for profile in "$TMPDIR"/files/*; do
+    (
+        sed "
+            s/^dev tun$/dev-type tun\ndev vpn0/
+            s/^verb .$/verb 4/
+            s/^auth-user-pass$/& ${CREDS//\//\\\/}/
+        " "$profile"
+        echo 'connect-retry 5 5'
+        echo 'auth-nocache'
+        echo 'ncp-disable'
+        echo 'user vpn'
+        echo 'group vpn'
+    ) > "$SRCPATH/${profile##*/}"
+done
+
+rsync -r "$SRCPATH"/ "$DSTPATH"/
+rm -rf "$TMPDIR"

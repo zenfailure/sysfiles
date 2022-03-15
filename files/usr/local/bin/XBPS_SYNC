@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+PAT='s/^(.*)-.*$/\1/p'
+
+IFS=$'\n' read -r -d '' -a PACKAGES  < \
+    <(comm -23 <(sort /etc/xbps.d/packages) \
+    <(xbps-query -m | sed -rn "$PAT" | sort) | tr -d '[[:blank:]]')
+
+IFS=$'\n' read -r -d '' -a RPACKAGES < \
+    <(comm -13 <(sort /etc/xbps.d/packages) \
+    <(xbps-query -m | sed -rn "$PAT" | sort) | tr -d '[[:blank:]]')
+
+echo "Packages to install: ${PACKAGES[*]}"
+echo "-----------------------------------------"
+echo "Packages to remove: ${RPACKAGES[*]}"
+echo "-----------------------------------------"
+echo
+
+xbps-install -u xbps
+xbps-install -Syu "${PACKAGES[@]}"
+xbps-remove -Ro "${RPACKAGES[@]}"

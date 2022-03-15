@@ -1,0 +1,5 @@
+#!/bin/sh
+exec 2>&1
+sv check dbus || exit 1
+sv check libvirtd || exit 1
+exec virtlogd

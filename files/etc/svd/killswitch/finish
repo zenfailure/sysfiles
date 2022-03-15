@@ -1,0 +1,40 @@
+#!/bin/sh
+
+exec 2>&1
+
+ip6tables -w -D INPUT -i eth+  -j DROP
+ip6tables -w -D INPUT -i wlan+ -j DROP
+
+ip6tables -w -D OUTPUT -o eth+  -j DROP
+ip6tables -w -D OUTPUT -o wlan+ -j DROP
+
+ip6tables -w -D FORWARD -o eth+  -j DROP
+ip6tables -w -D FORWARD -o wlan+ -j DROP
+
+iptables -w -P INPUT   ACCEPT
+iptables -w -P FORWARD ACCEPT
+iptables -w -P OUTPUT  ACCEPT
+
+iptables -w -D INPUT       -t filter -j CUSTOM_INP_FILTER
+iptables -w -D OUTPUT      -t filter -j CUSTOM_OUT_FILTER
+iptables -w -D OUTPUT      -t mangle -j CUSTOM_OUT_MANGLE
+iptables -w -D OUTPUT      -t nat    -j CUSTOM_OUT_NAT
+iptables -w -D POSTROUTING -t nat    -j CUSTOM_PRT_NAT
+
+iptables -w -t filter -F CUSTOM_INP_FILTER
+iptables -w -t filter -X CUSTOM_INP_FILTER
+
+iptables -w -t filter -F CUSTOM_OUT_FILTER
+iptables -w -t filter -X CUSTOM_OUT_FILTER
+
+iptables -w -t mangle -F CUSTOM_OUT_MANGLE
+iptables -w -t mangle -X CUSTOM_OUT_MANGLE
+
+iptables -w -t nat    -F CUSTOM_OUT_NAT
+iptables -w -t nat    -X CUSTOM_OUT_NAT
+
+iptables -w -t nat    -F CUSTOM_PRT_NAT
+iptables -w -t nat    -X CUSTOM_PRT_NAT
+
+ip rule del priority 1000 fwmark 1 table main
+ip rule del priority 1000 fwmark 2 table wan

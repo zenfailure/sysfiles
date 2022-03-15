@@ -1,0 +1,4 @@
+#!/bin/sh
+exec 2>&1
+#exec cgexec -g net_cls:wan dnscrypt-proxy -config /etc/dnscrypt-proxy.toml
+exec dnscrypt-proxy -config /etc/dnscrypt-proxy.toml

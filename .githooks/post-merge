@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+PASSENTRY='misc/pass'
+ARCHIVE='archive.tar.gz.gpg'
+
+git config --local core.hooksPath .githooks
+
+gpg --decrypt --batch --pinentry-mode=loopback \
+    --passphrase-file=<(pass show "$PASSENTRY") "$ARCHIVE" | \
+        tar xzf - --preserve-permissions --no-same-owner --unlink-first \
+            --recursive-unlink

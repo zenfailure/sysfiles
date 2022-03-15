@@ -1,0 +1,6 @@
+#!/bin/sh
+exec 2>&1
+sv check dbus || exit 1
+sv check networkmanager || exit 1
+[ -f ./conf ] && . ./conf
+exec libvirtd $OPTS 2>&1

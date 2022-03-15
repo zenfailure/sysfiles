@@ -1,0 +1,5 @@
+**/supervise/
+files/etc/sudoers
+files/etc/security/sudo_authorized_keys
+files/etc/NetworkManager/system-connections/
+files/etc/openvpn/*/credentials.txt

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+if [[ -n "$DISPLAY" ]]; then
+    export DISPLAY
+else
+    export DISPLAY=:0
+fi
+
+echo "OK"
+
+while read cmd rest; do
+
+    cmd=$(printf "%s" "$cmd" | tr 'A-Z' 'a-z')
+
+    if [ -z "$cmd" ]; then
+        continue;
+    fi
+
+    case "$cmd" in
+        \#*)
+        ;;
+        getpin)
+            _PP=$(echo "" | rofi -dmenu -password -lines 0 -theme pinentry-dark -p "GPG Pinentry")
+            echo "D $_PP"
+            echo "OK"
+            ;;
+        bye)
+            echo "OK"
+            exit 0
+            ;;
+        *)
+            echo "OK"
+            ;;
+    esac
+done

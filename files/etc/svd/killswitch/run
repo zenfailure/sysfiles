@@ -1,0 +1,125 @@
+#!/bin/sh
+
+exec 2>&1
+
+ip6tables -w -A INPUT -i eth+  -j DROP
+ip6tables -w -A INPUT -i wlan+ -j DROP
+
+ip6tables -w -A OUTPUT -o eth+  -j DROP
+ip6tables -w -A OUTPUT -o wlan+ -j DROP
+
+ip6tables -w -A FORWARD -o eth+  -j DROP
+ip6tables -w -A FORWARD -o wlan+ -j DROP
+
+iptables -w -P INPUT   DROP
+iptables -w -P FORWARD ACCEPT
+iptables -w -P OUTPUT  DROP
+
+iptables -w -t filter -N CUSTOM_INP_FILTER
+iptables -w -t filter -N CUSTOM_OUT_FILTER
+iptables -w -t mangle -N CUSTOM_OUT_MANGLE
+iptables -w -t nat    -N CUSTOM_OUT_NAT
+iptables -w -t nat    -N CUSTOM_PRT_NAT
+
+iptables -w -A INPUT       -t filter -j CUSTOM_INP_FILTER
+iptables -w -A OUTPUT      -t filter -j CUSTOM_OUT_FILTER
+
+iptables -w -A OUTPUT      -t mangle -j CUSTOM_OUT_MANGLE
+iptables -w -A OUTPUT      -t nat    -j CUSTOM_OUT_NAT
+iptables -w -A POSTROUTING -t nat    -j CUSTOM_PRT_NAT
+
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -d 8.8.8.8 -m owner --uid-owner dnscrypt_proxy -p tcp -m tcp --dport 443 -j MARK --set-mark 3
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -d 9.9.9.9 -m owner --uid-owner dnscrypt_proxy -p tcp -m tcp --dport 443 -j MARK --set-mark 3
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m owner --uid-owner dnscrypt_proxy -p tcp -m tcp --dport 443 -j RETURN
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -d 9.9.9.9 -m owner --uid-owner dnscrypt_proxy -p udp -m udp --dport 443 -j MARK --set-mark 3
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -d 9.9.9.9 -m owner --uid-owner dnscrypt_proxy -p udp -m udp --dport 443 -j MARK --set-mark 3
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m owner --uid-owner dnscrypt_proxy -p udp -m udp --dport 443 -j RETURN
+
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m owner --uid-owner tor -j MARK --set-mark 2
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m owner --uid-owner tor -j RETURN
+
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x1 -j MARK --set-mark 1
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x1 -j RETURN
+
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x2 -j MARK --set-mark 2
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x2 -j RETURN
+
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x3 -j MARK --set-mark 3
+iptables -w -A CUSTOM_OUT_MANGLE -t mangle -m cgroup --cgroup 0x3 -j RETURN
+
+iptables -w -A CUSTOM_PRT_NAT -t nat -m mark --mark 2 -o eth+  -j MASQUERADE
+iptables -w -A CUSTOM_PRT_NAT -t nat -m mark --mark 2 -o wlan+ -j MASQUERADE
+
+iptables -w -A CUSTOM_OUT_NAT -t nat -o lo      -p udp -m udp --dport 53 -j RETURN
+iptables -w -A CUSTOM_OUT_NAT -t nat -o lxdbr+  -p udp -m udp --dport 53 -j RETURN
+iptables -w -A CUSTOM_OUT_NAT -t nat -o virbr+  -p udp -m udp --dport 53 -j RETURN
+iptables -w -A CUSTOM_OUT_NAT -t nat -o docker+ -p udp -m udp --dport 53 -j RETURN
+
+iptables -w -A CUSTOM_OUT_NAT -t nat -p udp -m udp  --dport 53 -j REDIRECT --to-ports 9053
+iptables -w -A CUSTOM_OUT_NAT -t nat -p tcp -m mark --mark   3 -j REDIRECT --to-ports 9040
+
+iptables -w -A CUSTOM_INP_FILTER -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -m conntrack --ctstate ESTABLISHED -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -p udp -m multiport --sports 67,68 -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -p udp -m multiport --sports 67,68 -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -p udp -m multiport --dports 67,68 -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -p udp -m multiport --dports 67,68 -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -p udp --sport 5353 --dport 5353 -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -p udp --sport 5353 --dport 5353 -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -d 192.168.0.0/24 -m tcp -p tcp --dport 22 -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -d 192.168.0.0/24 -m tcp -p tcp --dport 22 -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i eth+  -s 192.168.0.0/24 -m tcp -p tcp --dport 22 -j ACCEPT
+iptables -w -A CUSTOM_INP_FILTER -i wlan+ -s 192.168.0.0/24 -m tcp -p tcp --dport 22 -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -m cgroup --cgroup 0x2 -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -m cgroup --cgroup 0x2 -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -m owner --uid-owner tor  -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -m owner --uid-owner tor  -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -m owner --uid-owner vpn  -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -m owner --uid-owner vpn  -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -m owner --uid-owner dnscrypt_proxy  -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -m owner --uid-owner dnscrypt_proxy  -j ACCEPT
+
+iptables -w -A CUSTOM_OUT_FILTER -o eth+  -m owner --uid-owner root -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o wlan+ -m owner --uid-owner root -j ACCEPT
+
+
+iptables -w -A CUSTOM_INP_FILTER -i lo -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o lo -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i tap+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o tap+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i tun+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o tun+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i vpn+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o vpn+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i docker+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o docker+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i lxdbr+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o lxdbr+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i virbr+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o virbr+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -i veth+ -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -o veth+ -j ACCEPT
+
+iptables -w -A CUSTOM_INP_FILTER -p icmp -j ACCEPT
+iptables -w -A CUSTOM_OUT_FILTER -p icmp -j ACCEPT
+
+ip rule add priority 1000 fwmark 1 table main
+ip rule add priority 1000 fwmark 2 table wan
+
+exec chpst -b killswitch pause

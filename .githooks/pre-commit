@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+PASSENTRY='misc/pass'
+ARCHIVE='archive.tar.gz.gpg'
+
+failwith() {
+    echo "$@"
+    exit 1
+}
+
+git config --local core.hooksPath .githooks
+
+blacklist=()
+
+files=(
+    'files/etc/NetworkManager/system-connections'
+    'files/etc/openvpn/privateinternetaccess/credentials.txt'
+    'files/etc/sudoers'
+    'files/etc/security/sudo_authorized_keys'
+)
+
+bash "copy.bash"
+
+tar czf - --exclude-from=<(printf "%s\n" "${blacklist[@]}") \
+    --ignore-failed-read "${files[@]}" | gpg --batch --symmetric \
+        --pinentry-mode=loopback --passphrase-file=<(pass show misc/pass) > \
+            "$ARCHIVE" || failwith "Encryption failed."
+
+git add .githooks "$ARCHIVE"

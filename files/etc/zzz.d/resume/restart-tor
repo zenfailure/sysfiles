@@ -1,0 +1,3 @@
+#!/bin/sh
+
+vsv restart tor
